@@ -126,6 +126,6 @@ text-and-table.pdf0001-1.png text-and-table.pdf0002-2.png
 
 1. PDFs that contain images cannot be faithfully fully converted since images are not extracted.  Headings, lists, paragraphs, code-blocks and other basic markup that is compatible with Markdown should work, though.
 
-2. Each page of the input PDF is processed independently of the others, so it's possible that some context is lost from page to page (e.g., header levels) in multi-page PDFs.  As such, adjacent pages be slightly incoherent in their markup compared to the original document.
+2. Each page of the input PDF is processed independently of the others, so it's possible that some context is lost from page to page (e.g., header levels) in multi-page PDFs.  As such, adjacent pages may be slightly incoherent in their markup compared to the original document.
 
 3. OpenAI may enforce rate limits on your account both for requests per unit time and completion tokens generated per unit time, so if you try to process large PDFs with many pages, or even many short PDFs, the script will wait and retry for you, but it may be slow to wait for your rate limits to expire.
