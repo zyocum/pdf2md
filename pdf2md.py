@@ -36,7 +36,7 @@ def page_image2md(page_image):
         page_image.save(buffer, format=page_image.format)
         url_encoded_image = (
             f'data:image/{page_image.format.lower()};'
-            f'base64,{base64.b64encode(buffer.getvalue()).decode('utf8')}'
+            f'base64,{base64.b64encode(buffer.getvalue()).decode("utf8")}'
         )
     # get completions from OpenAI API
     response = completions_with_backoff(
