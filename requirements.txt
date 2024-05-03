@@ -2,4 +2,4 @@ backoff==2.2.1
 openai==1.12.0
 pdf2image==1.17.0
 pillow==10.2.0
-tqdm==4.66.2
+tqdm==4.66.3
