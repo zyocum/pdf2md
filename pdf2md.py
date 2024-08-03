@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Script for converting PDF to Markdown via OpenAI's `gpt-4-vision` model."""
+"""Script for converting PDF to Markdown via OpenAI's `gpt-4o` model."""
 
 import backoff
 import base64
@@ -30,7 +30,7 @@ def completions_with_backoff(**kwargs):
     return openai.chat.completions.create(**kwargs)
 
 def page_image2md(page_image):
-    """Prompt OpenAI `gpt-4-vision-preview` model to generate Markdown text from given PIL.Image"""
+    """Prompt OpenAI `gpt-4o` model to generate Markdown text from given PIL.Image"""
     # encode image with base64 url encoding in order to pass it to the OpenAI API
     with BytesIO() as buffer:
         page_image.save(buffer, format=page_image.format)
@@ -40,7 +40,7 @@ def page_image2md(page_image):
         )
     # get completions from OpenAI API
     response = completions_with_backoff(
-        model="gpt-4-vision-preview",
+        model="gpt-4o",
         seed=0,
         temperature=0.0,
         messages=[

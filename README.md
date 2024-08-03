@@ -43,7 +43,7 @@ $ source pdf2md/bin/activate
 (pdf2md) $ ./pdf2md.py --help
 usage: pdf2md.py [-h] [-c] [--first-page FIRST_PAGE] [--last-page LAST_PAGE] [--dpi DPI] pdf [output]
 
-Script for converting PDF to Markdown via OpenAI's `gpt-4-vision` model.
+Script for converting PDF to Markdown via OpenAI's `gpt-4o` model.
 
 positional arguments:
   pdf                   path to input PDF file to convert to Markdown
