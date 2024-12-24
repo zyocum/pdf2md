@@ -76,7 +76,7 @@ def page_image2md(page_image):
                 ],
             }
         ],
-        max_tokens=4096, # current maximum token limit
+        max_tokens=16384, # current maximum token limit
     )
     return response
 
