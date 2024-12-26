@@ -14,6 +14,17 @@ Add your Open API key to your environment (if it's not defined already):
 $ export OPENAI_API_KEY="sk-..." # your key will look like "sk-..."
 ```
 
+### Azure OpenAI API Access
+
+Acquire an Azure OpenAI API key and endpoint from the Azure portal.
+
+Add your Azure OpenAI API key and endpoint to your environment (if they are not defined already):
+
+```zsh
+$ export AZURE_OPENAI_API_KEY="your-azure-api-key"
+$ export AZURE_OPENAI_ENDPOINT="your-azure-endpoint"
+```
+
 ### `poppler`
 
 Install [`poppler`](https://poppler.freedesktop.org) for your system (for handling PDF to image conversion).
