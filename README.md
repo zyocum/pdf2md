@@ -25,6 +25,17 @@ $ brew install poppler
 ...
 ```
 
+On Ubuntu/Debian systems:
+
+```zsh
+$ sudo apt-get install poppler-utils
+...
+```
+
+For other Linux distributions, use their respective package managers:
+- Fedora/RHEL: `sudo dnf install poppler-utils`
+- Arch Linux: `sudo pacman -S poppler`
+
 ### Python Dependencies
 
 Then create a virtual environment and install the Python dependencies:
