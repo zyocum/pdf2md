@@ -12,6 +12,7 @@ from getpass import getpass
 from io import BytesIO
 from openai import (
     OpenAI,
+    AzureOpenAI,
     RateLimitError
 )
 from pathlib import Path
@@ -19,10 +20,19 @@ from pdf2image import convert_from_path
 from PIL import Image
 from tqdm import tqdm
 
-# fallback to prompting user for OpenAI API key if not set in environment
-api_key = os.environ.get('OPENAI_API_KEY') or getpass(prompt='OpenAI API key:')
+azure_api_key = os.environ.get('AZURE_OPENAI_API_KEY')
+azure_endpoint = os.environ.get('AZURE_OPENAI_ENDPOINT')
 
-openai = OpenAI(api_key=api_key)
+if azure_api_key and azure_endpoint:
+    openai = AzureOpenAI(
+        api_key=azure_api_key,
+        api_version="2024-10-21",
+        azure_endpoint=azure_endpoint
+    )
+else:
+    # fallback to prompting user for OpenAI API key if not set in environment
+    api_key = os.environ.get('OPENAI_API_KEY') or getpass(prompt='OpenAI API key:')
+    openai = OpenAI(api_key=api_key)
 
 @backoff.on_exception(backoff.expo, RateLimitError)
 def completions_with_backoff(**kwargs):
