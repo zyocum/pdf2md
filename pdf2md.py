@@ -2,45 +2,57 @@
 
 """Script for converting PDF to Markdown via OpenAI's `gpt-4o` model."""
 
-import backoff
+import asyncio
 import base64
 import os
 import sys
-
 from contextlib import closing
 from getpass import getpass
 from io import BytesIO
-from openai import (
-    OpenAI,
-    RateLimitError
-)
+from itertools import islice
 from pathlib import Path
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    TextIO,
+    Tuple,
+)
+
+import backoff
+import openai
+from openai.types.chat.chat_completion import ChatCompletion
 from pdf2image import convert_from_path
 from PIL import Image
 from tqdm import tqdm
 
-# fallback to prompting user for OpenAI API key if not set in environment
-api_key = os.environ.get('OPENAI_API_KEY') or getpass(prompt='OpenAI API key:')
-
-openai = OpenAI(api_key=api_key)
-
-@backoff.on_exception(backoff.expo, RateLimitError)
-def completions_with_backoff(**kwargs):
+@backoff.on_exception(backoff.expo, openai.RateLimitError)
+async def completions_with_backoff(
+    client: openai.AsyncOpenAI,
+    **kwargs: Dict[str, Dict[str, Any]]
+) -> ChatCompletion:
     """OpenAI chat completions wrapper that will retry with a backoff strategy when encountering API rate limits"""
-    return openai.chat.completions.create(**kwargs)
+    return await client.chat.completions.create(**kwargs)
 
-def page_image2md(page_image):
+async def page_image2md(
+    page_image: Image.Image,
+    client: openai.AsyncOpenAI
+) -> ChatCompletion:
     """Prompt OpenAI `gpt-4o` model to generate Markdown text from given PIL.Image"""
     # encode image with base64 url encoding in order to pass it to the OpenAI API
     with BytesIO() as buffer:
-        page_image.save(buffer, format=page_image.format)
+        page_image.load()
+        format = page_image.format or 'PNG'
+        page_image.save(buffer, format=format)
         url_encoded_image = (
-            f'data:image/{page_image.format.lower()};'
+            f'data:image/{format.lower()};'
             f'base64,{base64.b64encode(buffer.getvalue()).decode("utf8")}'
         )
     # get completions from OpenAI API
-    response = completions_with_backoff(
-        model="gpt-4o",
+    response = await completions_with_backoff(
+        client,
+        model='gpt-4.1',
         seed=0,
         temperature=0.0,
         messages=[
@@ -81,13 +93,14 @@ def page_image2md(page_image):
     return response
 
 def get_page_images(
-    pdf_path,
-    cache_pages=False,
-    first_page=None,
-    last_page=None,
-    page_dpi=200,
-    page_image_format='PNG',
-):
+    pdf_path: Path,
+    cache_pages: bool = False,
+    first_page: int = None,
+    last_page: int = None,
+    page_dpi: int = 200,
+    page_image_format: str = 'PNG',
+    thread_count: int = 8,
+) -> Generator[Image.Image]:
     """Generate PIL.Images for each page of the given PDF file.
 
     PDF page images can be cached to avoid regenerating them for every run.
@@ -100,11 +113,12 @@ def get_page_images(
             path = Path(path)
             if path.is_file():
                 with Image.open(path) as image:
+                    image.load()
                     yield image
     else:
         if cache_pages:
             pdf_pages_cache_directory.mkdir(parents=True, exist_ok=True)
-        yield from convert_from_path(
+        for image in convert_from_path(
             pdf_path,
             first_page=first_page,
             last_page=last_page,
@@ -112,35 +126,60 @@ def get_page_images(
             output_file=pdf_path,
             dpi=page_dpi,
             fmt=page_image_format,
-            thread_count=8,
-        )
+            thread_count=thread_count,
+        ):
+            image.load()
+            yield image
 
-def main(
-    pdf_path,
-    cache_pages=False,
-    first_page=None,
-    last_page=None,
-    page_dpi=200,
-    page_image_format='PNG',
-    output_file=sys.stdout,
-    page_sep=('\n' * 3) + ('-' * 10) + ('\n' * 3),
+def batches(
+    iterable: Iterable[Any],
+    n: int
+) -> Iterable[Tuple[Any]]:
+    """Lazily yield tuples of size n from iterable.
+    
+    The last iterable may be smaller than n.
+    """
+    iterable = iter(iterable)
+    while True:
+        batch = tuple(islice(iterable, 0, n))
+        if batch:
+            yield batch
+        else:
+            break
+
+async def main(
+    pdf_path: Path,
+    cache_pages: bool = False,
+    first_page: int = None,
+    last_page: int = None,
+    page_dpi: int = 200,
+    page_image_format: str = 'PNG',
+    concurrency: int = 8,
+    output_file: TextIO = sys.stdout,
+    page_sep: str = ('\n' * 3) + ('-' * 10) + ('\n' * 3),
 ):
+    # instantiate OpenAI client
+    api_key = os.environ.get('OPENAI_API_KEY') or getpass(prompt='OpenAI API key:')
+    client = openai.AsyncOpenAI(api_key=api_key)
+
+    pages = get_page_images(
+        pdf_path,
+        cache_pages=cache_pages,
+        first_page=first_page,
+        last_page=last_page,
+        page_dpi=page_dpi,
+        page_image_format=page_image_format,
+        thread_count=concurrency,
+    )
     with closing(output_file) as md_file:
-        with tqdm(
-            get_page_images(
-                pdf_path,
-                cache_pages=cache_pages,
-                first_page=first_page,
-                last_page=last_page,
-                page_dpi=page_dpi,
-                page_image_format=page_image_format,
-            ),
-            unit='page',
-        ) as images:
-            for image in images:
-                completions = page_image2md(image)
-                markdown = completions.choices[0].message.content
-                print(markdown, file=md_file, flush=True, end=page_sep)
+        with tqdm(unit='page') as progress:
+            for batch in batches(pages, concurrency):
+                tasks = [page_image2md(img, client) for img in batch]
+                responses = await asyncio.gather(*tasks)
+                for response in responses:
+                    markdown = response.choices[0].message.content
+                    print(markdown, file=md_file, flush=True, end=page_sep)
+                    progress.update(1)
 
 if __name__ == '__main__':
     import argparse
@@ -184,12 +223,22 @@ if __name__ == '__main__':
         default=200,
         help='intermediate image resolution in dots-per-inch (DPI) (higher DPI is higher quality, but takes more memory/disk space)',
     )
+    parser.add_argument(
+        '-n', '--concurrency',
+        type=int,
+        default=8,
+        help='number of pages to process in parallel',
+    )
     args = parser.parse_args()
-    main(
-        args.pdf,
-        cache_pages=args.cache_pages,
-        first_page=args.first_page,
-        last_page=args.last_page,
-        page_dpi=args.dpi,
-        output_file=args.output,
+    # run the async pipeline
+    asyncio.run(
+        main(
+            args.pdf,
+            cache_pages=args.cache_pages,
+            first_page=args.first_page,
+            last_page=args.last_page,
+            page_dpi=args.dpi,
+            concurrency=args.concurrency,
+            output_file=args.output,
+        )
     )

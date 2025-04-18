@@ -38,28 +38,27 @@ For other Linux distributions, use their respective package managers:
 
 ### Python Dependencies
 
-Then create a virtual environment and install the Python dependencies:
+Then create a virtual environment and install the Python dependencies with [`uv`](https://github.com/astral-sh/uv) (`$ pip install uv` if you don't have it in your global Python environment):
 
 ```zsh
-$ python -m venv pdf2md
-$ source pdf2md/bin/activate
-(pdf2md) $ pip install -U pip
+$ uv venv
 ...
-(pdf2md) $ pip install -r requirements.txt
+Activate with: source .venv/bin/activate
+$ source .venv/bin/activate
+(pdf2md) $ uv sync
 ...
 ```
 
 ## Usage
 ```zsh
-(pdf2md) $ ./pdf2md.py --help
-usage: pdf2md.py [-h] [-c] [--first-page FIRST_PAGE] [--last-page LAST_PAGE] [--dpi DPI] pdf [output]
+(pdf2md) $ ./pdf2md.py -h
+usage: pdf2md.py [-h] [-c] [--first-page FIRST_PAGE] [--last-page LAST_PAGE] [--dpi DPI] [-n CONCURRENCY] pdf [output]
 
 Script for converting PDF to Markdown via OpenAI's `gpt-4o` model.
 
 positional arguments:
   pdf                   path to input PDF file to convert to Markdown
-  output                output file where Markdown conversion will be written (or stdout) (default:
-                        <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>)
+  output                output file where Markdown conversion will be written (or stdout) (default: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>)
 
 options:
   -h, --help            show this help message and exit
@@ -68,8 +67,9 @@ options:
                         the first page to convert (default: None)
   --last-page LAST_PAGE
                         the last page to convert (default: None)
-  --dpi DPI             intermediate image resolution in dots-per-inch (DPI) (higher DPI is higher quality, but
-                        takes more memory/disk space) (default: 200)
+  --dpi DPI             intermediate image resolution in dots-per-inch (DPI) (higher DPI is higher quality, but takes more memory/disk space) (default: 200)
+  -n, --concurrency CONCURRENCY
+                        number of pages to process in parallel (default: 8)
 ```
 
 ## Example
@@ -79,47 +79,51 @@ You can download an example PDF to convert from [here](https://api.slingacademy.
 ```zsh
 (pdf2md) $ curl -so text-and-table.pdf 'https://api.slingacademy.com/v1/sample-data/files/text-and-table.pdf'
 (pdf2md) $ ./pdf2md.py text-and-table.pdf > text-and-table.pdf.md
-2page [00:03, 1.52s/page]
-(pdf2md) $ cat text-and-table.pdf.md
+2page [00:08,  4.21s/page]
+(pdf2md) $ cat text-and-table.pdf.md 
 # Sample PDF File for Practice
 
-## Page 1: Table Data
+*Page 1: Table Data*
 
 The table below displays information about some fictional people:
 
-| First Name | Last Name | Age |
-|------------|-----------|-----|
-| John       | Doe       | 99  |
-| Jane       | Doo       | 29  |
-| Black      | Smith     | 49  |
-| Lone       | Wolf      | 35  |
-| Foo        | Bar       | 5   |
-| Sekiro     | Honda     | 45  |
-| Elon       | Musk      | 54  |
-| Catherine  | Roth      | 55  |
-| Julio      | Caesar    | 58  |
-| Candy      | Sweet     | 6   |
-| Bo         | Kim       | 32  |
-| Sling      | Academy   | 44  |
-| Rantaro    | Shinsuke  | 9   |
-| Cold       | Water     | 15  |
-| Fried      | Chicken   | 3   |
-| Blonde     | Pink      | 23  |
+| **First Name** | **Last Name** | **Age** |
+|----------------|--------------|---------|
+| John           | Doe          | 99      |
+| Jane           | Doo          | 29      |
+| Black          | Smith        | 49      |
+| Lone           | Wolf         | 35      |
+| Foo            | Bar          | 5       |
+| Sekiro         | Honda        | 45      |
+| Elon           | Musk         | 54      |
+| Catherine      | Roth         | 55      |
+| Julio          | Caesar       | 58      |
+| Candy          | Sweet        | 6       |
+| Bo             | Kim          | 32      |
+| Sling          | Academy      | 44      |
+| Rantaro        | Shinsuke     | 9       |
+| Cold           | Water        | 15      |
+| Fried          | Chicken      | 3       |
+| Blonde         | Pink         | 23      |
 
-This PDF file has one more page. Don’t miss it.
+*This PDF file has one more page. Don’t miss it.*
 
 
 ----------
 
 
-# Page 2
+*Page 2*
 
-Welcome to [www.slingacademy.com](https://www.slingacademy.com). You can find more sample data at [https://www.slingacademy.com/cat/sample-data/](https://www.slingacademy.com/cat/sample-data/)
+Welcome to [www.slingacademy.com](http://www.slingacademy.com). You can find more sample data at  
+[https://www.slingacademy.com/cat/sample-data/](https://www.slingacademy.com/cat/sample-data/)
 
 Happy coding & have a nice day!
 
 
 ----------
+
+
+
 ```
 
 Output Markdown file: [text-and-table.pdf.md](text-and-table.pdf.md)
@@ -127,8 +131,8 @@ Output Markdown file: [text-and-table.pdf.md](text-and-table.pdf.md)
 If you want to save intermediate PNG images of the PDF pages, use the `-c/--cache-pages` options (this can speed things up a little bit if you want to rerun a conversion of a large PDF, though OpenAI API rate limits may still be the rate-limiting factor).
 
 ```zsh
-(pdf2md) $ ./pdf2md.py text-and-table.pdf --cache-pages > text-and-table.pdf.md
-2page [00:03, 1.52s/page]
+(pdf2md) $ ./pdf2md.py text-and-table.pdf --cache-pages > text-and-table.pdf.md         
+2page [00:09,  4.78s/page]
 (pdf2md) $ ls text-and-table
 text-and-table.pdf0001-1.png text-and-table.pdf0002-2.png
 ```
